@@ -7,9 +7,10 @@
 </template>
 
 <script>
-import { defineComponent } from "vue";
+import { defineComponent, ref, onUnmounted, watchEffect } from "vue";
 
 import EmbedVideoPlayer from "../components/embed-video-player";
+import { TimeSyncService } from "../services/time-sync-service";
 import { Config } from "../config";
 
 export default defineComponent({
@@ -17,13 +18,29 @@ export default defineComponent({
   components: {
     EmbedVideoPlayer,
   },
-  data() {
+  async setup() {
+    const worldTimestamp = ref(0);
+    const videoUrl = ref(Config.mainConferenceVideo);
+
+    const timeSyncIntervalId = setInterval(async () => {
+      worldTimestamp.value = await TimeSyncService.getGlobalTime();
+    }, Config.timeSyncInterval);
+
+    watchEffect(() => {
+      if (worldTimestamp.value >= Config.livePremierTimestamp) {
+        videoUrl.value = Config.liveConferenceVideo;
+        clearInterval(timeSyncIntervalId);
+      }
+    });
+
+    onUnmounted(() => {
+      clearInterval(timeSyncIntervalId);
+    });
+
     return {
-      videoUrl: Config.mainConferenceVideo,
+      worldTimestamp,
+      videoUrl,
     };
-  },
-  setup() {
-    return {};
   },
 });
 </script>
